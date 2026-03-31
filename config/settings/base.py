@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV = os.getenv(
     "DJANGO_SETTINGS_MODULE",
-    "config.settings.develop",
+    "config.settings.development",
 ).rsplit(
     ".", maxsplit=1
 )[-1]
