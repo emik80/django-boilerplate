@@ -14,6 +14,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ../../:/app
+      - app_logs:/app/logs
     ports:
       - "<APP_PORT>:8000"
     depends_on:
@@ -26,7 +27,8 @@ services:
     env_file:
       - app.env
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql
 
 volumes:
   postgres:
+  app_logs:

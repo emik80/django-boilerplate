@@ -71,8 +71,7 @@ down: ## Stop and remove containers
 restart: ## Restart compose services
 	docker compose -f $(COMPOSE_FILE) restart
 
-rebuild: ## Rebuild containers and restart
-	rebuild: down build up
+rebuild: down build up ## Rebuild containers and restart
 
 logs: ## View real-time container logs
 	docker compose -f $(COMPOSE_FILE) logs $(APP_NAME) --tail 100 -f
