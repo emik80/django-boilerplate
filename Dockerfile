@@ -1,22 +1,54 @@
-FROM python:3.12-slim-bookworm
+# Stage 1: Build virtual environment dependencies using uv
+FROM python:3.14-slim AS builder
 
-ARG ENV
+# Install uv binary from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-ENV PROJECT_DIR "/app"
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Tell uv to create the virtual environment at /venv (outside /app)
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/venv
 
-RUN mkdir $PROJECT_DIR
-WORKDIR $PROJECT_DIR
+WORKDIR /app
 
-RUN  apt-get update \
-#  && apt-get install -y ... \
-  && rm -rf /var/lib/apt/lists
+# Copy dependency configuration files
+COPY pyproject.toml uv.lock* ./
 
-COPY uv.lock pyproject.toml .
+# Synchronize dependencies into /venv directly from pyproject.toml
+RUN uv sync --no-install-project
 
-RUN  ls -l && pip install --upgrade pip \
-  && pip install uv \
-  && uv pip install --system -r pyproject.toml --group $ENV
+# Stage 2: Minimal runtime container
+FROM python:3.14-slim AS runner
 
-ADD . $PROJECT_DIR
+WORKDIR /app
+
+# Create non-root system user and prepare media, static, and logs directories with proper permissions
+RUN groupadd --system appgroup && \
+    useradd --system -g appgroup appuser && \
+    mkdir -p /app/media /app/static /app/logs && \
+    chown -R appuser:appgroup /app
+
+# Environment configuration to activate virtual environment at /venv
+ENV VIRTUAL_ENV=/venv \
+    PATH="/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Copy virtual environment from builder
+COPY --from=builder --chown=appuser:appgroup /venv /venv
+
+# Copy application source code
+COPY --chown=appuser:appgroup . .
+
+# Expose default Django port
+EXPOSE 8000
+
+# Switch to non-root user for security
+USER appuser
+
+# Health-check routine via internal Django endpoint
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/').read()"]
+
+# Default command to run Django development server
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
