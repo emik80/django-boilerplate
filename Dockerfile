@@ -1,6 +1,8 @@
 # Stage 1: Build virtual environment dependencies using uv
 FROM python:3.14-slim AS builder
 
+ARG ENV=development
+
 # Install uv binary from official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
@@ -15,16 +17,19 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* ./
 
 # Synchronize dependencies into /venv directly from pyproject.toml
-RUN uv sync --no-install-project
+RUN uv sync --no-install-project --group ${ENV}
 
 # Stage 2: Minimal runtime container
 FROM python:3.14-slim AS runner
 
 WORKDIR /app
 
-# Create non-root system user and prepare media, static, and logs directories with proper permissions
-RUN groupadd --system appgroup && \
-    useradd --system -g appgroup appuser && \
+ARG UID=1000
+ARG GID=1000
+
+# Create non-root user and prepare media, static, and logs directories with proper permissions
+RUN groupadd -g "${GID}" appgroup && \
+    useradd -u "${UID}" -g appgroup appuser && \
     mkdir -p /app/media /app/static /app/logs && \
     chown -R appuser:appgroup /app
 
