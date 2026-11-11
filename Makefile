@@ -146,6 +146,10 @@ makecommand: ## Scaffold a new management command (Usage: make makecommand app=b
 	@cp boilerplate/makecommand/example.py apps/$(app)/management/commands/$(cmd).py
 	@echo -e "\033[32m[✓] Created management command 'apps/$(app)/management/commands/$(cmd).py'\033[0m"
 
+manage: ## Run arbitrary Django management commands (Usage: make manage cmd="migrate projects zero")
+	@if [ -z "$(cmd)" ]; then echo "Error: Please specify command, e.g., 'make manage cmd=\"migrate projects zero\"'"; exit 1; fi
+	$(COMPOSE) exec $(APP_NAME) python manage.py $(cmd)
+
 # ==============================================================================
 # DATABASE BACKUP & RESTORE
 # ==============================================================================
